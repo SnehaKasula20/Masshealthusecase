@@ -1,1 +1,40 @@
+name: Deploy Task Orchestration
 
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'DWH/taskorchestration.sql'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Snowflake CLI
+        uses: snowflakedb/snowflake-cli-action@v1
+
+      - name: Configure Snowflake Connection
+        run: |
+          mkdir -p ~/.snowflake
+
+          cat > ~/.snowflake/config.toml <<EOF
+          default_connection_name = "default"
+
+          [connections.default]
+          account = "${{ secrets.SNOWFLAKE_ACCOUNT }}"
+          user = "${{ secrets.SNOWFLAKE_USER }}"
+          password = "${{ secrets.SNOWFLAKE_PASSWORD }}"
+          warehouse = "${{ secrets.SNOWFLAKE_WAREHOUSE }}"
+          database = "DCF_RAWDATA"
+          schema = "UTIL"
+          role = "${{ secrets.SNOWFLAKE_ROLE }}"
+          EOF
+
+      - name: Deploy taskorchestration.sql
+        run: |
+          snow sql -f DWH/taskorchestration.sql
