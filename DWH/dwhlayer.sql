@@ -38,7 +38,7 @@ select * from dcf_rawdata.public.T_MEDICATIONS
 
 
 
-
+snow://workspace/USER$.PUBLIC."Mass_health_usecase"/versions/head/DWH/dwhlayer.sql
 
 
      CREATE OR REPLACE NOTEBOOK PROJECT DCF_RAWDATA.UTIL.STAGING_PROJECT
@@ -46,7 +46,7 @@ select * from dcf_rawdata.public.T_MEDICATIONS
   COMMENT = 'Runs all staging and dwh load notebook'
 
   CREATE OR REPLACE NOTEBOOK PROJECT DCF_RAWDATA.UTIL.STAGING_PROJECT
-FROM 'snow://workspace/USER$.PUBLIC."Masshealthusecase"/versions/head/'
+FROM 'snow://workspace/USER$.PUBLIC."Mass_health_usecase"/versions/head/'
 COMMENT = 'Runs all staging and DWH load notebooks';
 
 
@@ -109,9 +109,11 @@ AS
     RUNTIME = 'V2.7-CPU-PY3.12';
 
 
-ALTER TASK DCF_RAWDATA.UTIL.MAIN_TASK resume;
-ALTER TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE resume;
+ALTER TASK DCF_RAWDATA.UTIL.MAIN_TASK suspend;
+ALTER TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE suspend;
 
 
 select * from config.etl_failed_records
 select * from audit.audit_job_log
+
+select * from dcf_rawdata.rawdata.STREAM_POSTGRES_STAGE
