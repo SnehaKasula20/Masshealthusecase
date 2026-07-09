@@ -30,11 +30,9 @@ jobs:
           user = "${{ secrets.SNOWFLAKE_USER }}"
           password = "${{ secrets.SNOWFLAKE_PASSWORD }}"
           warehouse = "${{ secrets.SNOWFLAKE_WAREHOUSE }}"
-          database = "DCF_RAWDATA"
-          schema = "UTIL"
           role = "${{ secrets.SNOWFLAKE_ROLE }}"
           EOF
 
-      - name: Deploy taskorchestration.sql
+      - name: Deploy task
         run: |
           snow sql -f DWH/taskorchestration.sql
