@@ -201,6 +201,7 @@ DECLARE
     log_name        STRING;
     run_status      STRING;
     alert_msg       STRING;
+    error_msg       STRING;
     log_layer       STRING        DEFAULT 'RAWDATA';
     raw_table       STRING        DEFAULT '';
     has_checksum    BOOLEAN;
@@ -289,6 +290,22 @@ BEGIN
     SELECT $1, $2
     INTO :rows_loaded, :rows_failed
     FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
+
+    IF (rows_failed > 0) THEN
+
+    sql_query :=
+    'SELECT "first_error"
+     FROM TABLE(RESULT_SCAN(''' || copy_id || '''))
+     WHERE "errors_seen" > 0
+     LIMIT 1';
+
+    EXECUTE IMMEDIATE sql_query;
+
+    SELECT $1
+    INTO :error_msg
+    FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
+
+    END IF;
 
     IF (rows_failed > 0) THEN
         sql_query :=
@@ -384,10 +401,15 @@ BEGIN
     run_status := CASE WHEN rows_failed > 0 THEN 'PARTIAL_SUCCESS' ELSE 'SUCCESS' END;
 
     sql_query :=
-        'CALL ' || v_db || '.' || v_audit_schema || '.' || v_sp_audit ||
-        '(''' || job_id || ''', ''' || log_name || ''', ''' || log_layer || ''', ''' ||
-        start_time || '''::TIMESTAMP_NTZ, CURRENT_TIMESTAMP(), ' ||
-        rows_loaded || ', ' || rows_failed || ', ''' || run_status || ''', NULL)';
+    'CALL ' || v_db || '.' || v_audit_schema || '.' || v_sp_audit ||
+    '(''' || job_id || ''', ''' || log_name || ''', ''' || log_layer || ''', ''' ||
+    start_time || '''::TIMESTAMP_NTZ, CURRENT_TIMESTAMP(), ' ||
+    rows_loaded || ', ' || rows_failed || ', ''' || run_status || ''', ' ||
+    CASE
+        WHEN error_msg IS NULL THEN 'NULL'
+        ELSE '''' || REPLACE(error_msg, '''', '''''') || ''''
+    END || ')';
+
     EXECUTE IMMEDIATE sql_query;
 
     IF (rows_inserted = 0 AND rows_updated = 0 AND rows_failed = 0) THEN

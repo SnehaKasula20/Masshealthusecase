@@ -30,5 +30,14 @@ select * from staging.stg_allowable_values where av_id=106374
 select * from staging.invalid_records
 
 
-ALTER TASK DCF_RAWDATA.UTIL.MAIN_TASK SUSPEND;
-ALTER TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE SUSPEND;
+ALTER TASK DCF_RAWDATA.UTIL.MAIN_TASK suspend;
+ALTER TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE suspend;
+
+
+select * from dcf_rawdata.config.etl_failed_records
+select * from dcf_rawdata.rawdata.stream_postgres_stage
+
+
+select * from audit.audit_job_log order by start_time desc
+
+SELECT GET_DDL('SCHEMA', 'DCF_RAWDATA.PUBLIC');
