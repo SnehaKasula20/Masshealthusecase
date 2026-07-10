@@ -28,3 +28,7 @@ select * from staging.stg_cases
 select * from staging.stg_allowable_values where av_id=106374
 
 select * from staging.invalid_records
+
+
+ALTER TASK DCF_RAWDATA.UTIL.MAIN_TASK SUSPEND;
+ALTER TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE SUSPEND;
