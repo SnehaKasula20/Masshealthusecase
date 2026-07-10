@@ -1,6 +1,7 @@
 # Database & Warehouse
 DB = "DCF_RAWDATA"
 WH = "COMPUTE_WH"
+DataWH="COMPUTE_WH"
 
 # Schemas
 RAW = "PUBLIC"
