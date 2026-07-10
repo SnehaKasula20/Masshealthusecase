@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'DWH/taskorchestration.sql'
 
 jobs:
   deploy:
@@ -15,24 +13,5 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Snowflake CLI
-        uses: snowflakedb/snowflake-cli-action@v1
-
-      - name: Configure Snowflake Connection
-        run: |
-          mkdir -p ~/.snowflake
-
-          cat > ~/.snowflake/config.toml <<EOF
-          default_connection_name = "default"
-
-          [connections.default]
-          account = "${{ secrets.SNOWFLAKE_ACCOUNT }}"
-          user = "${{ secrets.SNOWFLAKE_USER }}"
-          password = "${{ secrets.SNOWFLAKE_PASSWORD }}"
-          warehouse = "${{ secrets.SNOWFLAKE_WAREHOUSE }}"
-          role = "${{ secrets.SNOWFLAKE_ROLE }}"
-          EOF
-
-      - name: Deploy task
-        run: |
-          snow sql -f DWH/taskorchestration.sql
+      - name: Print Test
+        run: echo "Workflow is running successfully"
