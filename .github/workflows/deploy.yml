@@ -44,7 +44,7 @@ jobs:
           chmod 600 ~/.snowflake/config.toml
       - name: Test Snowflake Connection
         run: |
-          snow sql -q "SELECT CURRENT_VERSION();"
+          snow --debug sql -q "SELECT CURRENT_VERSION();"
 
       - name: Deploy Task Orchestration SQL
         run: |
