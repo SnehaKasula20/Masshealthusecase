@@ -1,9 +1,13 @@
-name: Deploy Task Orchestration
+name: Deploy Snowflake Objects
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'DWH/**/*.ipynb'
+      - 'DWH/Notebookprojectcreation.sql'
+      - 'DWH/taskorchestration.sql'
 
 jobs:
   deploy:
@@ -12,6 +16,17 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect Changed Files
+        id: changes
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            DWH/**/*.ipynb
+            DWH/Notebookprojectcreation.sql
+            DWH/taskorchestration.sql
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -41,11 +56,23 @@ jobs:
           warehouse = "${{ secrets.SNOWFLAKE_WAREHOUSE }}"
           role = "${{ secrets.SNOWFLAKE_ROLE }}"
           EOF
+
           chmod 600 ~/.snowflake/config.toml
+
       - name: Test Snowflake Connection
         run: |
           snow sql -q "SELECT CURRENT_VERSION();"
 
-      - name: Deploy Task Orchestration SQL
+      - name: Recreate Notebook Project
+        if: |
+          contains(steps.changes.outputs.all_changed_files, 'DWH/Notebookprojectcreation.sql') ||
+          contains(steps.changes.outputs.all_changed_files, '.ipynb')
         run: |
+          echo "Notebook changes detected..."
+          snow sql -f DWH/Notebookprojectcreation.sql
+
+      - name: Deploy Task Orchestration
+        if: contains(steps.changes.outputs.all_changed_files, 'DWH/taskorchestration.sql')
+        run: |
+          echo "Task changes detected..."
           snow sql -f DWH/taskorchestration.sql
