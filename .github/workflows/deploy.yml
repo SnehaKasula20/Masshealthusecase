@@ -41,7 +41,7 @@ jobs:
           warehouse = "${{ secrets.SNOWFLAKE_WAREHOUSE }}"
           role = "${{ secrets.SNOWFLAKE_ROLE }}"
           EOF
-
+          chmod 600 ~/.snowflake/config.toml
       - name: Test Snowflake Connection
         run: |
           snow sql -q "SELECT CURRENT_VERSION();"
