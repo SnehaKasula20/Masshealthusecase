@@ -1,6 +1,6 @@
 
 
-exec(open('/DWH/parameters.py').read())
+exec(open('DWH/parameters.py').read())
 
 from snowflake.snowpark.context import get_active_session
 
