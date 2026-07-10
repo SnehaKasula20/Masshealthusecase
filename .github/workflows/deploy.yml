@@ -6,10 +6,8 @@ on:
       - main
     paths:
       - 'DWH/**/*.ipynb'
-      - 'DWH/Notebookprojectrecreation.sql'
+      - 'Rawdata/parameters.py'
       - 'DWH/taskorchestration.sql'
-      - 'DWH/parameters.py'
-      - 'Rawdata/spcreation.py'
 
 jobs:
   deploy:
@@ -27,10 +25,8 @@ jobs:
         with:
           files: |
             DWH/**/*.ipynb
-            DWH/Notebookprojectrecreation.sql
+            Rawdata/parameters.py
             DWH/taskorchestration.sql
-            DWH/parameters.py
-            Rawdata/spcreation.py
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -68,19 +64,15 @@ jobs:
           snow sql -q "SELECT CURRENT_VERSION();"
 
       - name: Recreate Notebook Project
-        if: |
-          contains(steps.changes.outputs.all_changed_files, 'DWH/Notebookprojectrecreation.sql') ||
-          contains(steps.changes.outputs.all_changed_files, '.ipynb')
+        if: contains(steps.changes.outputs.all_changed_files, '.ipynb')
         run: |
           echo "Notebook changes detected..."
           snow sql -f DWH/Notebookprojectrecreation.sql
 
-      - name: Deploy Stored Procedures
-        if: |
-          contains(steps.changes.outputs.all_changed_files, 'DWH/parameters.py') ||
-          contains(steps.changes.outputs.all_changed_files, 'Rawdata/spcreation.py')
+      - name: Recreate Stored Procedures
+        if: contains(steps.changes.outputs.all_changed_files, 'Rawdata/parameters.py')
         run: |
-          echo "Stored Procedure changes detected..."
+          echo "Parameter changes detected..."
           python Rawdata/spcreation.py
 
       - name: Deploy Task Orchestration
