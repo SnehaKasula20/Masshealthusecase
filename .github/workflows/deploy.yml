@@ -8,6 +8,8 @@ on:
       - 'DWH/**/*.ipynb'
       - 'DWH/Notebookprojectrecreation.sql'
       - 'DWH/taskorchestration.sql'
+      - 'DWH/parameters.py'
+      - 'DWH/spcreation.py'
 
 jobs:
   deploy:
@@ -27,6 +29,8 @@ jobs:
             DWH/**/*.ipynb
             DWH/Notebookprojectrecreation.sql
             DWH/taskorchestration.sql
+            DWH/parameters.py
+            DWH/spcreation.py
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -70,6 +74,14 @@ jobs:
         run: |
           echo "Notebook changes detected..."
           snow sql -f DWH/Notebookprojectrecreation.sql
+
+      - name: Deploy Stored Procedures
+        if: |
+          contains(steps.changes.outputs.all_changed_files, 'DWH/parameters.py') ||
+          contains(steps.changes.outputs.all_changed_files, 'DWH/spcreation.py')
+        run: |
+          echo "Stored Procedure changes detected..."
+          python DWH/spcreation.py
 
       - name: Deploy Task Orchestration
         if: contains(steps.changes.outputs.all_changed_files, 'DWH/taskorchestration.sql')
