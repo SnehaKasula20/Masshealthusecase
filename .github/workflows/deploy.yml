@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'DWH/**/*.ipynb'
-      - 'Rawdata/parameters.py'
+      - 'DWH/parameters.py'
       - 'DWH/taskorchestration.sql'
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
         with:
           files: |
             DWH/**/*.ipynb
-            Rawdata/parameters.py
+            DWH/parameters.py
             DWH/taskorchestration.sql
 
       - name: Set up Python
@@ -70,7 +70,7 @@ jobs:
           snow sql -f DWH/Notebookprojectrecreation.sql
 
       - name: Recreate Stored Procedures
-        if: contains(steps.changes.outputs.all_changed_files, 'Rawdata/parameters.py')
+        if: contains(steps.changes.outputs.all_changed_files, 'DWH/parameters.py')
         run: |
           echo "Parameter changes detected..."
           python Rawdata/spcreation.py
