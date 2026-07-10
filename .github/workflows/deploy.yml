@@ -71,6 +71,12 @@ jobs:
 
       - name: Recreate Stored Procedures
         if: contains(steps.changes.outputs.all_changed_files, 'DWH/parameters.py')
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
         run: |
           echo "Parameter changes detected..."
           python Rawdata/spcreation.py
