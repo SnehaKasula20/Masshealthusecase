@@ -9,7 +9,7 @@ on:
       - 'DWH/Notebookprojectrecreation.sql'
       - 'DWH/taskorchestration.sql'
       - 'DWH/parameters.py'
-      - 'DWH/spcreation.py'
+      - 'Rawdata/spcreation.py'
 
 jobs:
   deploy:
@@ -30,7 +30,7 @@ jobs:
             DWH/Notebookprojectrecreation.sql
             DWH/taskorchestration.sql
             DWH/parameters.py
-            DWH/spcreation.py
+            Rawdata/spcreation.py
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -78,10 +78,10 @@ jobs:
       - name: Deploy Stored Procedures
         if: |
           contains(steps.changes.outputs.all_changed_files, 'DWH/parameters.py') ||
-          contains(steps.changes.outputs.all_changed_files, 'DWH/spcreation.py')
+          contains(steps.changes.outputs.all_changed_files, 'Rawdata/spcreation.py')
         run: |
           echo "Stored Procedure changes detected..."
-          python DWH/spcreation.py
+          python Rawdata/spcreation.py
 
       - name: Deploy Task Orchestration
         if: contains(steps.changes.outputs.all_changed_files, 'DWH/taskorchestration.sql')
