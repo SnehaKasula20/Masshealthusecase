@@ -1,5 +1,5 @@
 
-
+exec(open('DWH/parameters.py').read())
 from snowflake.snowpark import Session
 import os
 
