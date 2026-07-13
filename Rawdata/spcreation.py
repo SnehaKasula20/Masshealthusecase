@@ -1,10 +1,17 @@
 
 
-exec(open('DWH/parameters.py').read())
+from snowflake.snowpark import Session
+import os
 
-from snowflake.snowpark.context import get_active_session
+connection_parameters = {
+    "account": os.environ["SNOWFLAKE_ACCOUNT"],
+    "user": os.environ["SNOWFLAKE_USER"],
+    "password": os.environ["SNOWFLAKE_PASSWORD"],
+    "role": os.environ["SNOWFLAKE_ROLE"],
+    "warehouse": os.environ["SNOWFLAKE_WAREHOUSE"],
+}
 
-session = get_active_session()
+session = Session.builder.configs(connection_parameters).create()
 
 
 # SP_ORCHESTRATE_RAW_LOAD
