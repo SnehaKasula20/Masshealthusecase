@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Detect Changed Files
+      - name: Detect Changed all Files
         id: changes
         uses: tj-actions/changed-files@v45
         with:
