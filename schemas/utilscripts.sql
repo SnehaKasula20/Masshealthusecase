@@ -14,7 +14,7 @@ DECLARE
 
 BEGIN 
 
-    v_subject := ''Retail ETL Pipeline - '' || :status || '' - '' || :job_name; 
+    v_subject := ''DCF Pipeline - '' || :status || '' - '' || :job_name; 
 
  
 
@@ -74,3 +74,5 @@ TYPE = EMAIL
 ENABLED = TRUE 
 
 ALLOWED_RECIPIENTS = ('skasula@defteam.com'); 
+
+

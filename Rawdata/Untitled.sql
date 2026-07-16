@@ -11,7 +11,7 @@ REMOVE '@DCF_RAWDATA.RAWDATA.POSTGRES_STAGE/T_CUSTODIES/';
 REMOVE '@DCF_RAWDATA.RAWDATA.POSTGRES_STAGE/T_CASES/';
 REMOVE '@DCF_RAWDATA.RAWDATA.POSTGRES_STAGE/T_ALLOWABLE_VALUES/';
 
-REMOVE '@"DCF_RAWDATA"."RAWDATA"."POSTGRES_STAGE"/T_MEDICATIONS_2.csv'
+REMOVE '@"DCF_RAWDATA"."RAWDATA"."POSTGRES_STAGE"/T_MEDICATION_HEALTH_BEHAVIOR/t_medication_health_behavior _2.csv'
 
 
 
@@ -212,6 +212,10 @@ TRUNCATE TABLE DCF_RAWDATA.CONFIG.ETL_WATERMARK;
 -- clean failed records
 TRUNCATE TABLE DCF_RAWDATA.CONFIG.ETL_FAILED_RECORDS;
 
+select * from config.etl_failed_records
+
+
+
 
 SELECT GET_DDL('SCHEMA', 'DCF_RAWDATA.PUBLIC');
 
@@ -253,8 +257,7 @@ select * from dwh.DIM_MEDICATIONS_INFO where medication_classification_code_av_i
 
 
 
--- Fix duplicate records in FACT_MEDICATIONS by deduplicating DIM_MEDICATIONS_INFO join
--- Co-authored with CoCo
+
 
 -- Step 1: Clean up duplicate rows in DIM_MEDICATIONS_INFO (keep only the lowest ID per classification code)
 DELETE FROM DCF_RAWDATA.DWH.DIM_MEDICATIONS_INFO
@@ -294,3 +297,10 @@ INNER JOIN DWH.DIM_MEDICATIONS_INFO d
 SELECT TABLE_NAME, LAST_SUCCESSFUL_WATERMARK, UPDATED_AT 
 FROM DCF_RAWDATA.CONFIG.ETL_WATERMARK 
 WHERE TABLE_NAME = 'T_MEDICATIONS';
+
+
+select * from staging.stg_cases
+
+
+select * from dwh.dim_cases_info where cas_id=3064205
+

@@ -1,7 +1,7 @@
 CREATE OR REPLACE TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE
   WAREHOUSE = 'COMPUTE_WH'
   SCHEDULE = '5 MINUTE'
-  TASK_AUTO_RETRY_ATTEMPTS = 3
+  --TASK_AUTO_RETRY_ATTEMPTS = 3
   WHEN SYSTEM$STREAM_HAS_DATA('DCF_RAWDATA.RAWDATA.STREAM_POSTGRES_STAGE')
 AS
   CALL DCF_RAWDATA.PUBLIC.SP_ORCHESTRATE_RAW_LOAD();
@@ -20,5 +20,21 @@ AS
     RUNTIME = 'V2.7-CPU-PY3.12';
     
 
-ALTER TASK DCF_RAWDATA.UTIL.MAIN_TASK RESUME;
-ALTER TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE RESUME;
+ALTER TASK DCF_RAWDATA.UTIL.MAIN_TASK resume;
+ALTER TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE suspend;
+
+select * from dcf_rawdata.rawdata.stream_postgres_stage
+
+select * from dcf_rawdata.config.etl_watermark
+
+
+EXECUTE TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE
+
+select * from dcf_rawdata.config.etl_failed_records
+
+select * from dcf_rawdata.public.stream_t_person_role_assignments
+
+select * from staging.stg_person_role_assignments
+
+
+

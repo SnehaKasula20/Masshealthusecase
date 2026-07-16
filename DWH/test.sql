@@ -35,9 +35,43 @@ ALTER TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE suspend;
 
 
 select * from dcf_rawdata.config.etl_failed_records
+
+select * from dcf_rawdata.audit.audit_job_log
 select * from dcf_rawdata.rawdata.stream_postgres_stage
 
 
 select * from audit.audit_job_log order by start_time desc
 
 SELECT GET_DDL('SCHEMA', 'DCF_RAWDATA.PUBLIC');
+
+
+
+SELECT 
+      CAS_ID,
+      C.CASE_NAME,
+      CASE_TYPE_AV_ID,
+      CASE_TYPE_DESC,
+      UNIT_ORGN_ID,
+      AREA_ORGN_ID,
+      REGION_ORGN_ID,
+      CURRENT_CASE_STATUS_CODE_AV_ID,
+      CURRENT_CASE_STATUS_CODE_DESC,
+      CURRENT_CASE_STATUS_DATE
+      FROM FACT_CASES C 
+      INNER JOIN DIM_CASES_INFO DCI 
+      ON C.CASES_INFO_ID = DCI.CASES_INFO_ID
+      WHERE C.DELETED_DATE IS NULL
+      AND DCI.DELETED_DATE IS NULL AND DCI.UPDATED_DATE IS NULL 
+
+
+      select * from 
+      select * from FACT_PERSON_ORG_INVOLVEMENT poi inner join FACT_CASES fc where fc.cas_id=poi.cas_cas_id
+
+
+TRUNCATE TABLE DCF_RAWDATA.DATAMART.DIM_DM_CAS_CASES_DT;
+
+TRUNCATE TABLE DCF_RAWDATA.DATAMART.DIM_DM_CUS_CUSTODIES_DT;
+
+TRUNCATE TABLE DCF_RAWDATA.DATAMART.DIM_DM_MEDICATION_CONSENT_DETAILS_DT;
+
+TRUNCATE TABLE DCF_RAWDATA.DATAMART.FACT_DM_MEDICATION_CONSENT;

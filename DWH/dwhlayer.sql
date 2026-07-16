@@ -72,7 +72,7 @@ create or replace task DCF_RAWDATA.util.MAIN_TASK
 
     select * from dcf_rawdata.dwh.fact_medication_health_behavior where MHP_ID=3055
 
-
+select * from public.stream_t_cases
     select * from dcf_rawdata.staging.stg_medication_health_behavior where mhp_id=3055
 
     select * from dwh.dim_cases_info

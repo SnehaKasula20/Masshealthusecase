@@ -1,5 +1,4 @@
-
-exec(open('DWH/parameters.py').read())
+exec(open('../DWH/parameters.py').read())
 from snowflake.snowpark import Session
 import os
 
@@ -13,7 +12,9 @@ connection_parameters = {
 
 session = Session.builder.configs(connection_parameters).create()
 
+# from snowflake.snowpark.context import get_active_session
 
+# session = get_active_session()
 # SP_ORCHESTRATE_RAW_LOAD
 
 
@@ -167,7 +168,7 @@ $$
 """
 
 
-# SP_LOAD_RAW_TABLE
+# SP_LOAD_RAW_TABLE (optimized: 2 queries for metadata instead of 4)
 
 
 sp_load_raw = f"""
@@ -220,56 +221,38 @@ BEGIN
     raw_table := v_db || '.' || v_raw_schema || '.RAW_' || table_name || '_' ||
              REPLACE(REPLACE(UPPER(file_name), '.CSV', ''), '-', '_');
 
+    --  PK config + watermark 
     sql_query :=
-        'SELECT PK_COLUMN, HAS_CHECKSUM ' ||
-        'FROM ' || v_db || '.' || v_raw_schema || '.' || v_pk_config || ' ' ||
-        'WHERE UPPER(TABLE_NAME) = UPPER(''' || table_name || ''')';
+        'SELECT pk.PK_COLUMN, pk.HAS_CHECKSUM, wm.LAST_SUCCESSFUL_WATERMARK ' ||
+        'FROM ' || v_db || '.' || v_raw_schema || '.' || v_pk_config || ' pk ' ||
+        'LEFT JOIN ' || v_db || '.' || v_config_schema || '.' || v_etl_watermark || ' wm ' ||
+        '    ON UPPER(wm.TABLE_NAME) = UPPER(pk.TABLE_NAME) ' ||
+        'WHERE UPPER(pk.TABLE_NAME) = UPPER(''' || table_name || ''')';
     EXECUTE IMMEDIATE sql_query;
 
-    SELECT $1, $2
-    INTO :pk_column, :has_checksum
+    SELECT $1, $2, $3
+    INTO :pk_column, :has_checksum, :last_loaded_ts
     FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
     IF (pk_column IS NULL) THEN
         RETURN 'FAILED | TABLE: ' || table_name || ' | ERROR: No PK config found';
     END IF;
 
+    --  SET clause + column list 
     sql_query :=
-        'SELECT LAST_SUCCESSFUL_WATERMARK ' ||
-        'FROM ' || v_db || '.' || v_config_schema || '.' || v_etl_watermark || ' ' ||
-        'WHERE UPPER(TABLE_NAME) = UPPER(''' || table_name || ''')';
-    EXECUTE IMMEDIATE sql_query;
-
-    SELECT $1
-    INTO :last_loaded_ts
-    FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
-
-    sql_query :=
-        'SELECT LISTAGG(''t.'' || COLUMN_NAME || '' = s.'' || COLUMN_NAME, '', '') ' ||
-        'WITHIN GROUP (ORDER BY ORDINAL_POSITION) ' ||
-        'FROM ' || v_db || '.INFORMATION_SCHEMA.COLUMNS ' ||
-        'WHERE TABLE_SCHEMA = ''' || v_raw_schema || ''' ' ||
-        'AND TABLE_NAME = UPPER(''' || table_name || ''') ' ||
-        'AND COLUMN_NAME NOT IN (' ||
-        '''' || UPPER(pk_column) || ''', ' ||
-        '''LOAD_TIMESTAMP'', ' ||
-        '''SOURCE_FILE_NAME'')';
-    EXECUTE IMMEDIATE sql_query;
-
-    SELECT $1
-    INTO :set_clause
-    FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
-
-    sql_query :=
-        'SELECT LISTAGG(COLUMN_NAME, '', '') WITHIN GROUP (ORDER BY ORDINAL_POSITION) ' ||
+        'SELECT ' ||
+        '    LISTAGG(CASE WHEN COLUMN_NAME != ''' || UPPER(pk_column) || ''' ' ||
+        '                 THEN ''t.'' || COLUMN_NAME || '' = s.'' || COLUMN_NAME END, '', '') ' ||
+        '        WITHIN GROUP (ORDER BY ORDINAL_POSITION) AS SET_CLAUSE, ' ||
+        '    LISTAGG(COLUMN_NAME, '', '') WITHIN GROUP (ORDER BY ORDINAL_POSITION) AS COL_LIST ' ||
         'FROM ' || v_db || '.INFORMATION_SCHEMA.COLUMNS ' ||
         'WHERE TABLE_SCHEMA = ''' || v_raw_schema || ''' ' ||
         'AND TABLE_NAME = UPPER(''' || table_name || ''') ' ||
         'AND COLUMN_NAME NOT IN (''LOAD_TIMESTAMP'', ''SOURCE_FILE_NAME'')';
     EXECUTE IMMEDIATE sql_query;
 
-    SELECT $1
-    INTO :col_list
+    SELECT $1, $2
+    INTO :set_clause, :col_list
     FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
     sql_query :=
