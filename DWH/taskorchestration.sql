@@ -23,18 +23,6 @@ AS
 ALTER TASK DCF_RAWDATA.UTIL.MAIN_TASK resume;
 ALTER TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE suspend;
 
-select * from dcf_rawdata.rawdata.stream_postgres_stage
-
-select * from dcf_rawdata.config.etl_watermark
-
-
-EXECUTE TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE
-
-select * from dcf_rawdata.config.etl_failed_records
-
-select * from dcf_rawdata.public.stream_t_person_role_assignments
-
-select * from staging.stg_person_role_assignments
 
 
 
