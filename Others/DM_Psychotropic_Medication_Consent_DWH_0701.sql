@@ -261,7 +261,7 @@ CASE_ASSIGNMENT AS (
     JOIN dim_staff_person_office_assigns_info dpoa
          ON dpoa.staff_person_office_assigns_info_id =
             spoa.staff_person_office_assigns_info_id
-        AND dpoa.assignment_type_av_id = '97982' -- Primary
+        AND dpoa.assignment_type_av_id = '97983' -- Primary
         AND spoa.DELETED_DATE IS NULL
         AND dpoa.DELETED_DATE IS NULL AND dpoa.UPDATED_DATE IS NULL
 )
