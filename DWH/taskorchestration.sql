@@ -20,7 +20,7 @@ AS
     RUNTIME = 'V2.7-CPU-PY3.12';
     
 
-#suspend task
+--suspend task
 ALTER TASK DCF_RAWDATA.UTIL.MAIN_TASK resume;
 ALTER TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE suspend;
 
