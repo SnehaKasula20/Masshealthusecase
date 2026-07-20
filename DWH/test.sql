@@ -34,6 +34,8 @@ ALTER TASK DCF_RAWDATA.UTIL.MAIN_TASK suspend;
 ALTER TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE suspend;
 
 
+EXECUTE TASK DCF_RAWDATA.UTIL.TASK_RAW_ORCHESTRATE
+
 select * from dcf_rawdata.config.etl_failed_records
 
 select * from dcf_rawdata.audit.audit_job_log
@@ -86,3 +88,8 @@ SELECT GET_DDL('SCHEMA', 'DCF_RAWDATA.AUDIT');
 SELECT GET_DDL('SCHEMA', 'DCF_RAWDATA.UTIL');
 SELECT GET_DDL('SCHEMA', 'DCF_RAWDATA.CONFIG');
 SELECT GET_DDL('SCHEMA', 'DCF_RAWDATA.DATAMART');
+
+
+select * from dcf_rawdata.public.t_custodies
+
+select * from TABLE(RESULT_SCAN('01c5c357-000d-d941-0001-2dd600021796'));

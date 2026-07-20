@@ -203,3 +203,8 @@ ORDER BY MHP_ID
 
 
 
+
+
+
+
+select * from dwh.DIM_T_PERSONS where person_id=14995347
