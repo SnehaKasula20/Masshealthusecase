@@ -93,3 +93,7 @@ SELECT GET_DDL('SCHEMA', 'DCF_RAWDATA.DATAMART');
 select * from dcf_rawdata.public.t_custodies
 
 select * from TABLE(RESULT_SCAN('01c5c357-000d-d941-0001-2dd600021796'));
+
+
+select * from dcf_rawdata.dwh.dim_t_persons where person_id=14995347
+

@@ -52,28 +52,32 @@ DECLARE
     orch_layer   STRING  DEFAULT 'RAWDATA';
     orch_msg     STRING  DEFAULT '';
     orch_return  STRING  DEFAULT '';
-    sql_query    STRING;
+    sql_list_stage_files   STRING;
+    sql_check_pk_config    STRING;
+    sql_call_load_raw      STRING;
+    sql_merge_watermark    STRING;
+    sql_call_notify        STRING;
 
 BEGIN
 
-    sql_query :=
+    sql_list_stage_files :=
         'SELECT SPLIT_PART(RELATIVE_PATH, ''/'', 1) AS TABLE_NAME, ' ||
         'SPLIT_PART(RELATIVE_PATH, ''/'', 2) AS FILE_NAME ' ||
         'FROM ' || v_db || '.' || v_rawdata_schema || '.' || v_stream_stage || ' ' ||
         'WHERE RELATIVE_PATH ILIKE ''%.csv'' ' ||
         'AND METADATA$ACTION = ''INSERT'' ' ||
         'ORDER BY LAST_MODIFIED ASC';
-    stage_files := (EXECUTE IMMEDIATE :sql_query);
+    stage_files := (EXECUTE IMMEDIATE :sql_list_stage_files);
 
     FOR rec IN stage_files DO
 
         table_name := rec.TABLE_NAME;
         file_name  := rec.FILE_NAME;
 
-        sql_query :=
+        sql_check_pk_config :=
             'SELECT COUNT(1) FROM ' || v_db || '.' || v_raw_schema || '.' || v_pk_config ||
             ' WHERE UPPER(TABLE_NAME) = UPPER(''' || table_name || ''')';
-        EXECUTE IMMEDIATE sql_query;
+        EXECUTE IMMEDIATE sql_check_pk_config;
 
         SELECT $1
         INTO :pk_exists
@@ -86,10 +90,10 @@ BEGIN
 
         total := total + 1;
 
-        sql_query :=
+        sql_call_load_raw :=
             'CALL ' || v_db || '.' || v_raw_schema || '.' || v_sp_load_raw ||
             '(''' || table_name || ''', ''' || file_name || ''')';
-        EXECUTE IMMEDIATE sql_query;
+        EXECUTE IMMEDIATE sql_call_load_raw;
 
         SELECT $1
         INTO :result
@@ -109,7 +113,7 @@ BEGIN
         RETURN 'No new files found. Nothing to process or the csv file does not exist in the TABLE_PK_CONFIG table.';
     END IF;
 
-    sql_query :=
+    sql_merge_watermark :=
         'MERGE INTO ' || v_db || '.' || v_config_schema || '.' || v_etl_watermark || ' t ' ||
         'USING ( ' ||
         '    SELECT TABLE_NAME, FILE_NAME FROM ( ' ||
@@ -135,7 +139,7 @@ BEGIN
         'WHEN NOT MATCHED THEN INSERT ' ||
         '    (TABLE_NAME, LAST_FILE_NAME) ' ||
         '    VALUES (s.TABLE_NAME, s.FILE_NAME)';
-    EXECUTE IMMEDIATE sql_query;
+    EXECUTE IMMEDIATE sql_merge_watermark;
 
     orch_status := CASE WHEN failed > 0 THEN 'PARTIAL' ELSE 'SUCCESS' END;
     orch_msg    :=
@@ -145,10 +149,10 @@ BEGIN
         '\\nFailed       : ' || failed     ||
         '\\n\\nDetails:'      || summary;
 
-    sql_query :=
+    sql_call_notify :=
         'CALL ' || v_db || '.' || v_util_schema || '.' || v_sp_notify ||
         '(''' || orch_status || ''', ''' || orch_job || ''', ''' || orch_layer || ''', ''' || orch_msg || ''')';
-    EXECUTE IMMEDIATE sql_query;
+    EXECUTE IMMEDIATE sql_call_notify;
 
     orch_return :=
         'ORCHESTRATION COMPLETE' ||
@@ -168,7 +172,7 @@ $$
 """
 
 
-# SP_LOAD_RAW_TABLE (optimized: 2 queries for metadata instead of 4)
+# SP_LOAD_RAW_TABLE 
 
 
 sp_load_raw = f"""
@@ -196,7 +200,19 @@ DECLARE
 
     job_id          STRING        DEFAULT UUID_STRING();
     start_time      TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP();
-    sql_query       STRING;
+    sql_get_pk_config      STRING;
+    sql_get_columns        STRING;
+    sql_create_temp        STRING;
+    sql_copy_into          STRING;
+    sql_get_copy_results   STRING;
+    sql_get_first_error    STRING;
+    sql_insert_failed      STRING;
+    sql_merge_raw          STRING;
+    sql_get_merge_results  STRING;
+    sql_drop_temp          STRING;
+    sql_merge_watermark    STRING;
+    sql_call_audit         STRING;
+    sql_call_notify        STRING;
     pk_column       STRING;
     last_loaded_ts  TIMESTAMP_NTZ;
     set_clause      STRING;
@@ -222,13 +238,13 @@ BEGIN
              REPLACE(REPLACE(UPPER(file_name), '.CSV', ''), '-', '_');
 
     --  PK config + watermark 
-    sql_query :=
+    sql_get_pk_config :=
         'SELECT pk.PK_COLUMN, pk.HAS_CHECKSUM, wm.LAST_SUCCESSFUL_WATERMARK ' ||
         'FROM ' || v_db || '.' || v_raw_schema || '.' || v_pk_config || ' pk ' ||
         'LEFT JOIN ' || v_db || '.' || v_config_schema || '.' || v_etl_watermark || ' wm ' ||
         '    ON UPPER(wm.TABLE_NAME) = UPPER(pk.TABLE_NAME) ' ||
         'WHERE UPPER(pk.TABLE_NAME) = UPPER(''' || table_name || ''')';
-    EXECUTE IMMEDIATE sql_query;
+    EXECUTE IMMEDIATE sql_get_pk_config;
 
     SELECT $1, $2, $3
     INTO :pk_column, :has_checksum, :last_loaded_ts
@@ -239,7 +255,7 @@ BEGIN
     END IF;
 
     --  SET clause + column list 
-    sql_query :=
+    sql_get_columns :=
         'SELECT ' ||
         '    LISTAGG(CASE WHEN COLUMN_NAME != ''' || UPPER(pk_column) || ''' ' ||
         '                 THEN ''t.'' || COLUMN_NAME || '' = s.'' || COLUMN_NAME END, '', '') ' ||
@@ -249,18 +265,18 @@ BEGIN
         'WHERE TABLE_SCHEMA = ''' || v_raw_schema || ''' ' ||
         'AND TABLE_NAME = UPPER(''' || table_name || ''') ' ||
         'AND COLUMN_NAME NOT IN (''LOAD_TIMESTAMP'', ''SOURCE_FILE_NAME'')';
-    EXECUTE IMMEDIATE sql_query;
+    EXECUTE IMMEDIATE sql_get_columns;
 
     SELECT $1, $2
     INTO :set_clause, :col_list
     FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
 
-    sql_query :=
+    sql_create_temp :=
         'CREATE OR REPLACE TEMPORARY TABLE ' || raw_table ||
         ' LIKE ' || v_db || '.' || v_raw_schema || '.' || table_name;
-    EXECUTE IMMEDIATE sql_query;
+    EXECUTE IMMEDIATE sql_create_temp;
 
-    sql_query :=
+    sql_copy_into :=
         'COPY INTO ' || raw_table || ' ' ||
         'FROM @' || v_db || '.' || v_rawdata_schema || '.' || v_postgres_stage || '/' || table_name || '/' || file_name || ' ' ||
         'FILE_FORMAT = (FORMAT_NAME = ''' || v_db || '.' || v_raw_schema || '.' || v_csv_format || ''') ' ||
@@ -268,14 +284,14 @@ BEGIN
         'ON_ERROR = CONTINUE ' ||
         'FORCE    = FALSE ' ||
         'PURGE    = FALSE';
-    EXECUTE IMMEDIATE sql_query;
+    EXECUTE IMMEDIATE sql_copy_into;
 
     copy_id := LAST_QUERY_ID();
 
-    sql_query :=
+    sql_get_copy_results :=
         'SELECT COALESCE(SUM("rows_loaded"), 0), COALESCE(SUM("errors_seen"), 0) ' ||
         'FROM TABLE(RESULT_SCAN(''' || copy_id || '''))';
-    EXECUTE IMMEDIATE sql_query;
+    EXECUTE IMMEDIATE sql_get_copy_results;
 
     SELECT $1, $2
     INTO :rows_loaded, :rows_failed
@@ -283,13 +299,13 @@ BEGIN
 
     IF (rows_failed > 0) THEN
 
-    sql_query :=
+    sql_get_first_error :=
     'SELECT "first_error"
      FROM TABLE(RESULT_SCAN(''' || copy_id || '''))
      WHERE "errors_seen" > 0
      LIMIT 1';
 
-    EXECUTE IMMEDIATE sql_query;
+    EXECUTE IMMEDIATE sql_get_first_error;
 
     SELECT $1
     INTO :error_msg
@@ -298,7 +314,7 @@ BEGIN
     END IF;
 
     IF (rows_failed > 0) THEN
-        sql_query :=
+        sql_insert_failed :=
             'INSERT INTO ' || v_db || '.' || v_config_schema || '.' || v_etl_failed || ' ' ||
             '(FILE_NAME, TABLE_NAME, ROW_DATA, ERROR_MESSAGE) ' ||
             'SELECT ' ||
@@ -315,7 +331,7 @@ BEGIN
             '    "first_error" ' ||
             'FROM TABLE(RESULT_SCAN(''' || copy_id || ''')) ' ||
             'WHERE "errors_seen" > 0';
-        EXECUTE IMMEDIATE sql_query;
+        EXECUTE IMMEDIATE sql_insert_failed;
     END IF;
 
     IF (has_checksum) THEN
@@ -339,7 +355,7 @@ BEGIN
             ') > ''' || last_loaded_ts || ''')';
     END IF;
 
-    sql_query :=
+    sql_merge_raw :=
         'MERGE INTO ' || v_db || '.' || v_raw_schema || '.' || table_name || ' t ' ||
         'USING ' || using_clause || ' s ' ||
         'ON t.' || pk_column || ' = s.' || pk_column || ' ' ||
@@ -354,12 +370,12 @@ BEGIN
         'INSERT (' || col_list || ', LOAD_TIMESTAMP, SOURCE_FILE_NAME) ' ||
         'VALUES (' || col_list || ', CURRENT_TIMESTAMP(), ''' || file_name || ''')';
 
-    EXECUTE IMMEDIATE sql_query;
+    EXECUTE IMMEDIATE sql_merge_raw;
 
-    sql_query :=
+    sql_get_merge_results :=
         'SELECT "number of rows inserted", "number of rows updated" ' ||
         'FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()))';
-    EXECUTE IMMEDIATE sql_query;
+    EXECUTE IMMEDIATE sql_get_merge_results;
 
     SELECT $1, $2
     INTO :rows_inserted, :rows_updated
@@ -367,10 +383,10 @@ BEGIN
 
     rows_loaded := rows_inserted + rows_updated;
 
-    sql_query := 'DROP TABLE IF EXISTS ' || raw_table;
-    EXECUTE IMMEDIATE sql_query;
+    sql_drop_temp := 'DROP TABLE IF EXISTS ' || raw_table;
+    EXECUTE IMMEDIATE sql_drop_temp;
 
-    sql_query :=
+    sql_merge_watermark :=
         'MERGE INTO ' || v_db || '.' || v_config_schema || '.' || v_etl_watermark || ' t ' ||
         'USING ( ' ||
         '    SELECT ''' || table_name || ''' AS TABLE_NAME, ' ||
@@ -385,12 +401,12 @@ BEGIN
         'WHEN NOT MATCHED THEN INSERT ' ||
         '    (TABLE_NAME, LAST_SUCCESSFUL_WATERMARK, LAST_FILE_NAME) ' ||
         '    VALUES (s.TABLE_NAME, s.NEW_TS, ''' || file_name || ''')';
-    EXECUTE IMMEDIATE sql_query;
+    EXECUTE IMMEDIATE sql_merge_watermark;
 
     log_name   := 'RAW_' || UPPER(table_name) || '_LOAD';
     run_status := CASE WHEN rows_failed > 0 THEN 'PARTIAL_SUCCESS' ELSE 'SUCCESS' END;
 
-    sql_query :=
+    sql_call_audit :=
     'CALL ' || v_db || '.' || v_audit_schema || '.' || v_sp_audit ||
     '(''' || job_id || ''', ''' || log_name || ''', ''' || log_layer || ''', ''' ||
     start_time || '''::TIMESTAMP_NTZ, CURRENT_TIMESTAMP(), ' ||
@@ -400,7 +416,7 @@ BEGIN
         ELSE '''' || REPLACE(error_msg, '''', '''''') || ''''
     END || ')';
 
-    EXECUTE IMMEDIATE sql_query;
+    EXECUTE IMMEDIATE sql_call_audit;
 
     IF (rows_inserted = 0 AND rows_updated = 0 AND rows_failed = 0) THEN
         RETURN
@@ -422,10 +438,10 @@ BEGIN
         'Copy Errors   : ' || rows_failed   || '\\n' ||
         'Processed At  : ' || CURRENT_TIMESTAMP();
 
-    sql_query :=
+    sql_call_notify :=
         'CALL ' || v_db || '.' || v_util_schema || '.' || v_sp_notify ||
         '(''' || run_status || ''', ''' || log_name || ''', ''' || log_layer || ''', ''' || alert_msg || ''')';
-    EXECUTE IMMEDIATE sql_query;
+    EXECUTE IMMEDIATE sql_call_notify;
 
     RETURN
         'SUCCESS'       ||
@@ -440,27 +456,27 @@ EXCEPTION
         LET err_msg     := SQLERRM;
         log_name        := 'RAW_' || UPPER(table_name) || '_LOAD';
 
-        sql_query :=
+        sql_insert_failed :=
             'INSERT INTO ' || v_db || '.' || v_config_schema || '.' || v_etl_failed ||
             ' (FILE_NAME, TABLE_NAME, ERROR_MESSAGE) ' ||
             'VALUES (''' || file_name || ''', ''' || table_name || ''', ''' || REPLACE(:err_msg, '''', '''''') || ''')';
-        EXECUTE IMMEDIATE sql_query;
+        EXECUTE IMMEDIATE sql_insert_failed;
 
-        sql_query :=
+        sql_call_audit :=
             'CALL ' || v_db || '.' || v_audit_schema || '.' || v_sp_audit ||
             '(''' || job_id || ''', ''' || log_name || ''', ''' || log_layer || ''', ''' ||
             start_time || '''::TIMESTAMP_NTZ, CURRENT_TIMESTAMP(), 0, 1, ''FAILED'', ''' ||
             REPLACE(:err_msg, '''', '''''') || ''')';
-        EXECUTE IMMEDIATE sql_query;
+        EXECUTE IMMEDIATE sql_call_audit;
 
         LET fail_status STRING := 'FAILED';
         LET fail_msg    STRING := :table_name || ' load failed. Error: ' || :err_msg;
 
-        sql_query :=
+        sql_call_notify :=
             'CALL ' || v_db || '.' || v_util_schema || '.' || v_sp_notify ||
             '(''' || :fail_status || ''', ''' || log_name || ''', ''' || log_layer || ''', ''' ||
             REPLACE(:fail_msg, '''', '''''') || ''')';
-        EXECUTE IMMEDIATE sql_query;
+        EXECUTE IMMEDIATE sql_call_notify;
 
         RETURN
             'FAILED'     ||
