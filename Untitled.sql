@@ -6,4 +6,4 @@ SELECT *
 FROM SNOWFLAKE_PUBLIC_DATA_FREE.PUBLIC_DATA_FREE.AIRPORT_INDEX
 LIMIT 10;
 
-select * from sample;
+select * from sample2;
